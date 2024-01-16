@@ -2,18 +2,25 @@ import { App, Editor, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Set
 
 // Remember to rename these classes and interfaces!
 
-interface MyPluginSettings {
+interface TimeFlip2Data {
+	settings: TimeFlip2Settings,
+	token: string
+}
+
+interface TimeFlip2Settings {
 	username: string,
 	password: string
 }
 
-const DEFAULT_SETTINGS: Partial<MyPluginSettings> = {}
+const DEFAULT_SETTINGS: Partial<TimeFlip2Settings> = {}
 
 export default class MyPlugin extends Plugin {
-	settings: MyPluginSettings;
+	public settings: TimeFlip2Settings
+
+	private data: TimeFlip2Data
 
 	async onload() {
-		await this.loadSettings();
+		await this.customLoadData()
 
 		// This creates an icon in the left ribbon.
 		const ribbonIconEl = this.addRibbonIcon('dice', 'Sample Plugin', (evt: MouseEvent) => {
@@ -81,12 +88,14 @@ export default class MyPlugin extends Plugin {
 
 	}
 
-	async loadSettings() {
-		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+	async customLoadData() {
+		this.data = await this.loadData()
+		this.data.settings = Object.assign({}, DEFAULT_SETTINGS, this.data.settings)
+		this.settings = this.data.settings
 	}
 
-	async saveSettings() {
-		await this.saveData(this.settings);
+	async customSaveData() {
+		await this.saveData(this.data)
 	}
 
 	private metaedit() {
@@ -99,7 +108,7 @@ export default class MyPlugin extends Plugin {
 	private async updateFileProp(
 		file: TFile | string,
 		propName: string,
-		updateValue: (value: string | number | null | undefined) => string | number
+		updateValue: (value?: string | number) => string | number | null
 	) {
 		const { getPropertyValue, createYamlProperty, update } = this.metaedit()
 		const currentValue = await getPropertyValue(propName, file)
@@ -145,7 +154,7 @@ class TimeFlip2SettingTab extends PluginSettingTab {
 				.setValue(this.plugin.settings.username)
 				.onChange(async (value) => {
 					this.plugin.settings.username = value
-					await this.plugin.saveSettings()
+					await this.plugin.customSaveData()
 				}))
 
 		new Setting(containerEl)
@@ -155,7 +164,7 @@ class TimeFlip2SettingTab extends PluginSettingTab {
 				.setValue(this.plugin.settings.password)
 				.onChange(async (value) => {
 					this.plugin.settings.password = value
-					await this.plugin.saveSettings()
+					await this.plugin.customLoadData()
 				}))
 	}
 }
