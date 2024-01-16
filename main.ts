@@ -47,8 +47,8 @@ export default class MyPlugin extends Plugin {
 		statusBarItemEl.setText('Status Bar Text');
 
 		this.addCommand({
-			id: 'import-data-to-today-daily-notes',
-			name: 'Import data to today\'s daily notes',
+			id: 'import-data-to-today-daily-note',
+			name: 'Import data to today\'s daily note',
 			callback: () => this.importToTodayDailyNote()
 		});
 
