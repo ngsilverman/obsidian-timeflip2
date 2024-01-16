@@ -1,8 +1,10 @@
-/*
+.timeflip2-dynamic-notice {
+    display: flex;
+    align-items: center;
+}
 
-This CSS file will be included with your plugin, and
-available in the app when your plugin is enabled.
-
-If your plugin does not need CSS, delete this file.
-
-*/
+.timeflip2-dynamic-notice .timeflip2-icon {
+    display: flex;
+    align-items: center;
+    margin-right: 0.75em;
+}

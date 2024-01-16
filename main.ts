@@ -1,5 +1,5 @@
 import moment from 'moment';
-import { App, Editor, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, RequestUrlResponse, Setting, TFile, normalizePath, requestUrl } from 'obsidian';
+import { App, Editor, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, RequestUrlResponse, Setting, TFile, normalizePath, requestUrl, setIcon } from 'obsidian';
 
 // Remember to rename these classes and interfaces!
 
@@ -135,33 +135,60 @@ export default class MyPlugin extends Plugin {
 	}
 
 	private async importToTodayDailyNote() {
+		const notice = new DynamicNotice('loader', 'Importing TimeFlip2 data to today\'s Daily Note…')
+
 		const dateStr = moment().format('YYYY-MM-DD')
 		const dailyReports = await this.api.getDailyReports(dateStr, dateStr)
 		const dailyReport = dailyReports[dateStr]
 		if (dailyReport !== null) {
-			this.updateDailyNoteProps(dailyReport)
+			await this.updateDailyNoteProps(dailyReport)
+    		notice.update('check', `TimeFlip2 data imported for ${dailyReport.tasks.length} tasks`)
+			notice.hideIn(2000)
+		} else {
+			notice.update('alert-circle', 'No TimeFlip2 data for today')
 		}
 	}
 
 	private async importToAllDailyNotes() {
+		const notice = new DynamicNotice('loader', 'Importing TimeFlip2 data to all Daily Notes…')
+
 		const dailyReports = await this.api.getDailyReports()
 		Object.values(dailyReports).forEach(this.updateDailyNoteProps)
+
+		notice.update('check', `TimeFlip2 data imported for ${Object.values(dailyReports).length} days`)
+		notice.hideIn(2000)
 	}
 }
 
-class SampleModal extends Modal {
-	constructor(app: App) {
-		super(app);
+class DynamicNotice {
+
+	private notice: Notice
+	private iconEl: HTMLElement
+	private textEl: HTMLElement
+
+	constructor(iconId: string, text: string) {
+		const fragment = createFragment(el => {
+			const containerEl = el.createDiv({ cls: 'timeflip2-dynamic-notice' })
+			this.iconEl = containerEl.createSpan({ cls: 'timeflip2-icon' })
+			setIcon(this.iconEl, iconId)
+			this.textEl = containerEl.createSpan({ text: text})
+		})
+		this.notice = new Notice(fragment, 0)
 	}
 
-	onOpen() {
-		const {contentEl} = this;
-		contentEl.setText('Woah!');
+	public update(iconId: string, text: string) {
+		setIcon(this.iconEl, iconId)
+		this.textEl.innerText = text
 	}
 
-	onClose() {
-		const {contentEl} = this;
-		contentEl.empty();
+	public hide() {
+		this.notice.hide()
+	}
+
+	public hideIn(durationMs: number) {
+		setTimeout(() => {
+			this.notice.hide()
+		}, durationMs)
 	}
 }
 
