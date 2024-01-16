@@ -3,12 +3,11 @@ import { App, Editor, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Set
 // Remember to rename these classes and interfaces!
 
 interface MyPluginSettings {
-	mySetting: string;
+	username: string,
+	password: string
 }
 
-const DEFAULT_SETTINGS: MyPluginSettings = {
-	mySetting: 'default'
-}
+const DEFAULT_SETTINGS: Partial<MyPluginSettings> = {}
 
 export default class MyPlugin extends Plugin {
 	settings: MyPluginSettings;
@@ -66,7 +65,7 @@ export default class MyPlugin extends Plugin {
 		});
 
 		// This adds a settings tab so the user can configure various aspects of the plugin
-		this.addSettingTab(new SampleSettingTab(this.app, this));
+		this.addSettingTab(new TimeFlip2SettingTab(this.app, this));
 
 		// If the plugin hooks up any global DOM events (on parts of the app that doesn't belong to this plugin)
 		// Using this function will automatically remove the event listener when this plugin is disabled.
@@ -126,28 +125,37 @@ class SampleModal extends Modal {
 	}
 }
 
-class SampleSettingTab extends PluginSettingTab {
-	plugin: MyPlugin;
+class TimeFlip2SettingTab extends PluginSettingTab {
+	plugin: MyPlugin
 
 	constructor(app: App, plugin: MyPlugin) {
-		super(app, plugin);
-		this.plugin = plugin;
+		super(app, plugin)
+		this.plugin = plugin
 	}
 
 	display(): void {
-		const {containerEl} = this;
+		const { containerEl } = this
 
-		containerEl.empty();
+		containerEl.empty()
 
 		new Setting(containerEl)
-			.setName('Setting #1')
-			.setDesc('It\'s a secret')
+			.setName('Username')
 			.addText(text => text
-				.setPlaceholder('Enter your secret')
-				.setValue(this.plugin.settings.mySetting)
+				.setPlaceholder('Enter your account username')
+				.setValue(this.plugin.settings.username)
 				.onChange(async (value) => {
-					this.plugin.settings.mySetting = value;
-					await this.plugin.saveSettings();
-				}));
+					this.plugin.settings.username = value
+					await this.plugin.saveSettings()
+				}))
+
+		new Setting(containerEl)
+			.setName('Password')
+			.addText(text => text
+				.setPlaceholder('Enter your account password')
+				.setValue(this.plugin.settings.password)
+				.onChange(async (value) => {
+					this.plugin.settings.password = value
+					await this.plugin.saveSettings()
+				}))
 	}
 }
