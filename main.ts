@@ -13,11 +13,13 @@ interface TimeFlip2Settings {
 	password: string
 }
 
+type SimplifiedDailyReport = {
+	dateStr: string,
+	tasks: { name: string, totalTimeSec: number, totalTimeMin: number }[]
+}
+
 type SimplifiedDailyReports = {
-	[dateStr: string]: {
-		dateStr: string,
-		tasks: { name: string, totalTime: number }[]
-	}
+	[dateStr: string]: SimplifiedDailyReport
 }
 
 const DEFAULT_SETTINGS: Partial<TimeFlip2Settings> = {}
@@ -44,46 +46,16 @@ export default class MyPlugin extends Plugin {
 		const statusBarItemEl = this.addStatusBarItem();
 		statusBarItemEl.setText('Status Bar Text');
 
-		// This adds a simple command that can be triggered anywhere
 		this.addCommand({
-			id: 'open-sample-modal-simple',
-			name: 'Open sample modal (simple)',
-			callback: () => {
-				new SampleModal(this.app).open();
-			}
+			id: 'import-data-to-today-daily-notes',
+			name: 'Import data to today\'s daily notes',
+			callback: () => this.importToTodayDailyNote()
 		});
-		this.addCommand({
-			id: 'import-to-daily-notes',
-			name: 'Import to daily notes',
-			callback: () => this.importToDailyNotes()
-		});
-		// This adds an editor command that can perform some operation on the current editor instance
-		this.addCommand({
-			id: 'sample-editor-command',
-			name: 'Sample editor command',
-			editorCallback: (editor: Editor, view: MarkdownView) => {
-				console.log(editor.getSelection());
-				editor.replaceSelection('Sample Editor Command');
-			}
-		});
-		// This adds a complex command that can check whether the current state of the app allows execution of the command
-		this.addCommand({
-			id: 'open-sample-modal-complex',
-			name: 'Open sample modal (complex)',
-			checkCallback: (checking: boolean) => {
-				// Conditions to check
-				const markdownView = this.app.workspace.getActiveViewOfType(MarkdownView);
-				if (markdownView) {
-					// If checking is true, we're simply "checking" if the command can be run.
-					// If checking is false, then we want to actually perform the operation.
-					if (!checking) {
-						new SampleModal(this.app).open();
-					}
 
-					// This command will only show up in Command Palette when the check function returns true
-					return true;
-				}
-			}
+		this.addCommand({
+			id: 'import-data-to-all-daily-notes',
+			name: 'Import data to all daily notes',
+			callback: () => this.importToAllDailyNotes()
 		});
 
 		// This adds a settings tab so the user can configure various aspects of the plugin
@@ -146,21 +118,34 @@ export default class MyPlugin extends Plugin {
 		return file as TFile
 	}
 
-	private async importToDailyNotes() {
-		const dailyReports = await this.api.getDailyReports()
-		Object.entries(dailyReports).forEach(async ([dateStr, day]) => {
-			const m = moment(dateStr)
-			const file = this.getDailyNoteFile(m)
-			if (file !== null) {
-				const activeTasks = day.tasks.filter(t => t.totalTimeMin > 0)
-				for (const task of activeTasks) {
-					const propName = task.name + ' (min)'
-					await this.updateFileProp(file, propName, () => task.totalTimeMin)
-					// TODO Without this sometimes the edits seem to happen concurrently which results in broken YAML.
-					await sleep(100)
-				}
+	private async updateDailyNoteProps(dailyReport: SimplifiedDailyReport) {
+		const { dateStr, tasks } = dailyReport
+		const m = moment(dateStr)
+		const file = this.getDailyNoteFile(m)
+		// TODO If the Daily Note file doesn't exist yet (and the date is not in the future), create it.
+		if (file !== null) {
+			const activeTasks = tasks.filter(t => t.totalTimeMin > 0)
+			for (const task of activeTasks) {
+				const propName = task.name + ' (min)'
+				await this.updateFileProp(file, propName, () => task.totalTimeMin)
+				// TODO Without this sometimes the edits seem to happen concurrently which results in broken YAML.
+				await sleep(100)
 			}
-		})
+		}
+	}
+
+	private async importToTodayDailyNote() {
+		const dateStr = moment().format('YYYY-MM-DD')
+		const dailyReports = await this.api.getDailyReports(dateStr, dateStr)
+		const dailyReport = dailyReports[dateStr]
+		if (dailyReport !== null) {
+			this.updateDailyNoteProps(dailyReport)
+		}
+	}
+
+	private async importToAllDailyNotes() {
+		const dailyReports = await this.api.getDailyReports()
+		Object.values(dailyReports).forEach(this.updateDailyNoteProps)
 	}
 }
 
