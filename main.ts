@@ -1,4 +1,4 @@
-import { App, Editor, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Setting, TFile } from 'obsidian';
+import { App, Editor, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Setting, TFile, requestUrl } from 'obsidian';
 
 // Remember to rename these classes and interfaces!
 
@@ -15,12 +15,16 @@ interface TimeFlip2Settings {
 const DEFAULT_SETTINGS: Partial<TimeFlip2Settings> = {}
 
 export default class MyPlugin extends Plugin {
+	public api: TimeFlip2Api
+	public data: TimeFlip2Data
 	public settings: TimeFlip2Settings
 
 	private data: TimeFlip2Data
 
 	async onload() {
 		await this.customLoadData()
+
+		this.api = new TimeFlip2Api(this)
 
 		// This creates an icon in the left ribbon.
 		const ribbonIconEl = this.addRibbonIcon('dice', 'Sample Plugin', (evt: MouseEvent) => {
@@ -164,7 +168,43 @@ class TimeFlip2SettingTab extends PluginSettingTab {
 				.setValue(this.plugin.settings.password)
 				.onChange(async (value) => {
 					this.plugin.settings.password = value
-					await this.plugin.customLoadData()
+					await this.plugin.customSaveData()
 				}))
+
+		new Setting(containerEl)
+			.addButton(button => button
+				.setButtonText('Sign in')
+				.onClick(() => {
+					const { email, password } = this.plugin.settings
+					this.plugin.api.signIn(email, password)
+				}))
+	}
+}
+
+class TimeFlip2Api {
+	private plugin: MyPlugin
+
+	private baseUrl = 'https://newapi.timeflip.io'
+
+	public constructor(plugin: MyPlugin) {
+		this.plugin = plugin
+	}
+
+	public async signIn(email: string, password: string) {
+		await requestUrl({
+			url: this.baseUrl + '/api/auth/email/sign-in',
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json'
+			},
+			body: JSON.stringify({
+				'email': email,
+				'password': password
+			})
+		})
+			.then((response) => {
+				this.plugin.data.token = response.headers.token
+				this.plugin.customSaveData()
+			})
 	}
 }
