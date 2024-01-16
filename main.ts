@@ -1,4 +1,4 @@
-import { App, Editor, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Setting } from 'obsidian';
+import { App, Editor, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Setting, TFile } from 'obsidian';
 
 // Remember to rename these classes and interfaces!
 
@@ -88,6 +88,25 @@ export default class MyPlugin extends Plugin {
 
 	async saveSettings() {
 		await this.saveData(this.settings);
+	}
+
+	private metaedit() {
+		return (this.app as any).plugins.plugins["metaedit"].api
+	}
+
+	/**
+	 * @param updateValue The argument will be `undefined` if the property doesn't exist yet.
+	 */
+	private async updateFileProp(
+		file: TFile | string,
+		propName: string,
+		updateValue: (value: string | number | null | undefined) => string | number
+	) {
+		const { getPropertyValue, createYamlProperty, update } = this.metaedit()
+		const currentValue = await getPropertyValue(propName, file)
+		const updatedValue = updateValue(currentValue)
+		const updateFun = currentValue === undefined ? createYamlProperty : update
+		await updateFun(propName, updatedValue, file)
 	}
 }
 
