@@ -8,7 +8,7 @@ interface TimeFlip2Data {
 }
 
 interface TimeFlip2Settings {
-	username: string,
+	email: string,
 	password: string
 }
 
@@ -148,12 +148,12 @@ class TimeFlip2SettingTab extends PluginSettingTab {
 		containerEl.empty()
 
 		new Setting(containerEl)
-			.setName('Username')
+			.setName('Email')
 			.addText(text => text
-				.setPlaceholder('Enter your account username')
-				.setValue(this.plugin.settings.username)
+				.setPlaceholder('Enter your account email')
+				.setValue(this.plugin.settings.email)
 				.onChange(async (value) => {
-					this.plugin.settings.username = value
+					this.plugin.settings.email = value
 					await this.plugin.customSaveData()
 				}))
 
