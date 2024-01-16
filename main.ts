@@ -1,4 +1,5 @@
-import { App, Editor, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, RequestUrlResponse, Setting, TFile, requestUrl } from 'obsidian';
+import moment from 'moment';
+import { App, Editor, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, RequestUrlResponse, Setting, TFile, normalizePath, requestUrl } from 'obsidian';
 
 // Remember to rename these classes and interfaces!
 
@@ -50,6 +51,11 @@ export default class MyPlugin extends Plugin {
 			callback: () => {
 				new SampleModal(this.app).open();
 			}
+		});
+		this.addCommand({
+			id: 'import-to-daily-notes',
+			name: 'Import to daily notes',
+			callback: () => this.importToDailyNotes()
 		});
 		// This adds an editor command that can perform some operation on the current editor instance
 		this.addCommand({
@@ -112,6 +118,7 @@ export default class MyPlugin extends Plugin {
 	}
 
 	/**
+	 * /!\ Does not support concurrent modifications of the same file.
 	 * @param updateValue The argument will be `undefined` if the property doesn't exist yet.
 	 */
 	private async updateFileProp(
@@ -122,8 +129,38 @@ export default class MyPlugin extends Plugin {
 		const { getPropertyValue, createYamlProperty, update } = this.metaedit()
 		const currentValue = await getPropertyValue(propName, file)
 		const updatedValue = updateValue(currentValue)
-		const updateFun = currentValue === undefined ? createYamlProperty : update
-		await updateFun(propName, updatedValue, file)
+		if (currentValue !== updatedValue) {
+			const updateFun = currentValue === undefined ? createYamlProperty : update
+			updateFun(propName, updatedValue, file)
+		}
+	}
+
+	private dailyNotes() {
+		return (this.app as any).internalPlugins.plugins["daily-notes"].instance
+	}
+
+	private getDailyNoteFile(moment: moment.Moment): TFile {
+		const { folder, format } = this.dailyNotes().options
+		const path = normalizePath(folder + '/' + moment.format(format)) + '.md'
+		const file = this.app.vault.getAbstractFileByPath(path)
+		return file as TFile
+	}
+
+	private async importToDailyNotes() {
+		const dailyReports = await this.api.getDailyReports()
+		Object.entries(dailyReports).forEach(async ([dateStr, day]) => {
+			const m = moment(dateStr)
+			const file = this.getDailyNoteFile(m)
+			if (file !== null) {
+				const activeTasks = day.tasks.filter(t => t.totalTimeMin > 0)
+				for (const task of activeTasks) {
+					const propName = task.name + ' (min)'
+					await this.updateFileProp(file, propName, () => task.totalTimeMin)
+					// TODO Without this sometimes the edits seem to happen concurrently which results in broken YAML.
+					await sleep(100)
+				}
+			}
+		})
 	}
 }
 
@@ -211,7 +248,7 @@ class TimeFlip2Api {
 			})
 	}
 
-	public async getDailyReports(beginDateStr: string, endDateStr: string) {
+	public async getDailyReports(beginDateStr?: string, endDateStr?: string) {
 		return requestUrl({
 			url: this.baseUrl + '/report/daily',
 			method: 'POST',
@@ -234,7 +271,8 @@ class TimeFlip2Api {
 					tasks: day.tasksInfo.map((taskInfo: any) => {
 						return {
 							name: taskInfo.task.name,
-							totalTime: taskInfo.totalTime
+							totalTimeSec: taskInfo.totalTime,
+							totalTimeMin: Math.round(taskInfo.totalTime / 60)
 						}
 					})
 				}
