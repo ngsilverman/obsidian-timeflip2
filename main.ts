@@ -1,4 +1,4 @@
-import { App, Editor, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Setting, TFile, requestUrl } from 'obsidian';
+import { App, Editor, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, RequestUrlResponse, Setting, TFile, requestUrl } from 'obsidian';
 
 // Remember to rename these classes and interfaces!
 
@@ -12,14 +12,19 @@ interface TimeFlip2Settings {
 	password: string
 }
 
+type SimplifiedDailyReports = {
+	[dateStr: string]: {
+		dateStr: string,
+		tasks: { name: string, totalTime: number }[]
+	}
+}
+
 const DEFAULT_SETTINGS: Partial<TimeFlip2Settings> = {}
 
 export default class MyPlugin extends Plugin {
 	public api: TimeFlip2Api
 	public data: TimeFlip2Data
 	public settings: TimeFlip2Settings
-
-	private data: TimeFlip2Data
 
 	async onload() {
 		await this.customLoadData()
@@ -191,20 +196,53 @@ class TimeFlip2Api {
 	}
 
 	public async signIn(email: string, password: string) {
-		await requestUrl({
+		return requestUrl({
 			url: this.baseUrl + '/api/auth/email/sign-in',
 			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json'
-			},
+			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({
-				'email': email,
-				'password': password
+				email: email,
+				password: password
 			})
 		})
 			.then((response) => {
 				this.plugin.data.token = response.headers.token
 				this.plugin.customSaveData()
 			})
+	}
+
+	public async getDailyReports(beginDateStr: string, endDateStr: string) {
+		return requestUrl({
+			url: this.baseUrl + '/report/daily',
+			method: 'POST',
+			headers: {
+				'Authorization': 'Bearer ' + this.plugin.data.token,
+				'Content-Type': 'application/json'
+			},
+			body: JSON.stringify({ beginDateStr, endDateStr })
+		})
+			.then(this.simplifyDailyReports)
+	}
+
+	private simplifyDailyReports(dailyReportsResponse: RequestUrlResponse): SimplifiedDailyReports {
+		const { weeks } = dailyReportsResponse.json
+
+		const days = weeks.map((week: any) => {
+			return week.days.map((day: any) => {
+				return {
+					dateStr: day.dateStr,
+					tasks: day.tasksInfo.map((taskInfo: any) => {
+						return {
+							name: taskInfo.task.name,
+							totalTime: taskInfo.totalTime
+						}
+					})
+				}
+			})
+		}).flat()
+
+		const simplifiedDailyReports: SimplifiedDailyReports = {}
+		days.forEach((day: any) => simplifiedDailyReports[day.dateStr] = day)
+		return simplifiedDailyReports
 	}
 }
