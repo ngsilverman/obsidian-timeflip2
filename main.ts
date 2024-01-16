@@ -1,7 +1,5 @@
 import moment from 'moment';
-import { App, Editor, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, RequestUrlResponse, Setting, TFile, normalizePath, requestUrl, setIcon } from 'obsidian';
-
-// Remember to rename these classes and interfaces!
+import { App, Notice, Plugin, PluginSettingTab, RequestUrlResponse, Setting, TFile, normalizePath, requestUrl, setIcon } from 'obsidian';
 
 interface TimeFlip2Data {
 	settings: TimeFlip2Settings,
@@ -24,7 +22,7 @@ type SimplifiedDailyReports = {
 
 const DEFAULT_SETTINGS: Partial<TimeFlip2Settings> = {}
 
-export default class MyPlugin extends Plugin {
+export default class TimeFlip2Plugin extends Plugin {
 	public api: TimeFlip2Api
 	public data: TimeFlip2Data
 	public settings: TimeFlip2Settings
@@ -33,18 +31,6 @@ export default class MyPlugin extends Plugin {
 		await this.customLoadData()
 
 		this.api = new TimeFlip2Api(this)
-
-		// This creates an icon in the left ribbon.
-		const ribbonIconEl = this.addRibbonIcon('dice', 'Sample Plugin', (evt: MouseEvent) => {
-			// Called when the user clicks the icon.
-			new Notice('This is a notice!');
-		});
-		// Perform additional things with the ribbon
-		ribbonIconEl.addClass('my-plugin-ribbon-class');
-
-		// This adds a status bar item to the bottom of the app. Does not work on mobile apps.
-		const statusBarItemEl = this.addStatusBarItem();
-		statusBarItemEl.setText('Status Bar Text');
 
 		this.addCommand({
 			id: 'import-data-to-today-daily-note',
@@ -60,15 +46,6 @@ export default class MyPlugin extends Plugin {
 
 		// This adds a settings tab so the user can configure various aspects of the plugin
 		this.addSettingTab(new TimeFlip2SettingTab(this.app, this));
-
-		// If the plugin hooks up any global DOM events (on parts of the app that doesn't belong to this plugin)
-		// Using this function will automatically remove the event listener when this plugin is disabled.
-		this.registerDomEvent(document, 'click', (evt: MouseEvent) => {
-			console.log('click', evt);
-		});
-
-		// When registering intervals, this function will automatically clear the interval when the plugin is disabled.
-		this.registerInterval(window.setInterval(() => console.log('setInterval'), 5 * 60 * 1000));
 	}
 
 	onunload() {
@@ -193,9 +170,9 @@ class DynamicNotice {
 }
 
 class TimeFlip2SettingTab extends PluginSettingTab {
-	plugin: MyPlugin
+	plugin: TimeFlip2Plugin
 
-	constructor(app: App, plugin: MyPlugin) {
+	constructor(app: App, plugin: TimeFlip2Plugin) {
 		super(app, plugin)
 		this.plugin = plugin
 	}
@@ -236,11 +213,11 @@ class TimeFlip2SettingTab extends PluginSettingTab {
 }
 
 class TimeFlip2Api {
-	private plugin: MyPlugin
+	private plugin: TimeFlip2Plugin
 
 	private baseUrl = 'https://newapi.timeflip.io'
 
-	public constructor(plugin: MyPlugin) {
+	public constructor(plugin: TimeFlip2Plugin) {
 		this.plugin = plugin
 	}
 
