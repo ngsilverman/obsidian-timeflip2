@@ -130,7 +130,9 @@ export default class TimeFlip2Plugin extends Plugin {
 		const notice = new DynamicNotice('loader', 'Importing TimeFlip2 data to all Daily Notes…')
 
 		const dailyReports = await this.api.getDailyReports()
-		Object.values(dailyReports).forEach(this.updateDailyNoteProps)
+		for (const report of Object.values(dailyReports)) {
+			this.updateDailyNoteProps(report)
+		}
 
 		notice.update('check', `TimeFlip2 data imported for ${Object.values(dailyReports).length} days`)
 		notice.hideIn(2000)
